@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MM Passport Lookup</title>
 <meta name="description" content="Check whether your passport is on a Myanmar Embassy Seoul pickup list.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f7f7f5; --card: #ffffff; --text: #1b1b1a; --muted: #6b6b66; --line: #e3e3de;
@@ -19,12 +22,22 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Myanmar", sans-serif;
   }
-  main { max-width: 640px; margin: 0 auto; padding: 48px 16px 64px; }
-  .flags { display: flex; gap: 10px; margin-bottom: 18px; }
+  html[lang="my"] body { line-height: 1.8; }
+  html[lang="my"] a { text-underline-offset: 0.45em; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .flags { display: flex; gap: 10px; }
   .flags svg { width: 42px; height: 28px; border-radius: 4px; box-shadow: 0 0 0 1px var(--line); display: block; }
-  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lang { display: flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--card); }
+  .lang button {
+    font: inherit; font-size: 14px; line-height: 1.4; border: 0; background: none; color: var(--muted);
+    padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  h1 { font-size: 26px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.01em; }
+  html[lang="my"] h1 { font-size: 23px; line-height: 1.6; letter-spacing: 0; }
   .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
   form { display: flex; gap: 8px; }
   input {
@@ -32,57 +45,102 @@
     border: 1px solid var(--line); background: var(--card); color: var(--text);
   }
   input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
-  button {
+  form button {
     font: inherit; font-weight: 600; padding: 12px 20px; border: 0; border-radius: 10px;
-    background: var(--accent); color: var(--accent-text); cursor: pointer;
+    background: var(--accent); color: var(--accent-text); cursor: pointer; white-space: nowrap;
   }
   .hint { color: var(--muted); font-size: 13px; margin: 10px 2px 0; }
-  #status { margin: 28px 0 12px; font-weight: 600; }
+  h2 { font-size: 16px; margin: 28px 0 12px; }
   .result {
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px 16px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px;
   }
   .result.exact { background: var(--hit); }
   .result.maybe { background: var(--maybe); }
-  .name { font-weight: 600; }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
   .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
   .meta { color: var(--muted); font-size: 14px; }
-  .meta a { color: var(--accent); }
+  .meta a, .cell a { color: var(--accent); }
   .tag { font-size: 12px; color: var(--muted); text-align: right; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+  .cell {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 2px; font-size: 14px;
+  }
+  .cell .name { font-size: 14px; }
+  .cell .id { text-align: left; font-size: 13px; }
+  .cell .meta { font-size: 12px; }
+  mark { background: none; color: var(--accent); }
   footer { color: var(--muted); font-size: 13px; margin-top: 40px; border-top: 1px solid var(--line); padding-top: 16px; }
   footer a { color: inherit; }
 </style>
 </head>
 <body>
 <main>
-  <div class="flags" aria-hidden="true">
-    <svg viewBox="0 0 18 12"><path fill="#FECB00" d="M0 0h18v4H0z"/><path fill="#34B233" d="M0 4h18v4H0z"/><path fill="#EA2839" d="M0 8h18v4H0z"/><polygon fill="#fff" points="9.000,2.000 9.993,5.056 13.206,5.056 10.606,6.944 11.599,9.999 9.000,8.111 6.401,9.999 7.394,6.944 4.794,5.056 8.007,5.056"/></svg>
-    <svg viewBox="-36 -24 72 48"><rect fill="#fff" x="-36" y="-24" width="72" height="48"/><g transform="rotate(-56.3099325)"><g id="kr-b2"><path id="kr-b" d="M-6-25H6M-6-22H6M-6-19H6" stroke="#000" stroke-width="2"/><use href="#kr-b" y="44"/></g><path stroke="#fff" d="M0,17v10"/><circle fill="#cd2e3a" r="12"/><path fill="#0047a0" d="M0-12A6,6 0 0 0 0,0A6,6 0 0 1 0,12A12,12 0 0 1 0-12Z"/></g><g transform="rotate(-123.6900675)"><use href="#kr-b2"/><path stroke="#fff" d="M0-23.5v3M0,17v3.5M0,23.5v3"/></g></svg>
+  <div class="top">
+    <div class="flags" aria-hidden="true">
+      <svg viewBox="0 0 18 12"><path fill="#FECB00" d="M0 0h18v4H0z"/><path fill="#34B233" d="M0 4h18v4H0z"/><path fill="#EA2839" d="M0 8h18v4H0z"/><polygon fill="#fff" points="9.000,2.000 9.993,5.056 13.206,5.056 10.606,6.944 11.599,9.999 9.000,8.111 6.401,9.999 7.394,6.944 4.794,5.056 8.007,5.056"/></svg>
+      <svg viewBox="-36 -24 72 48"><rect fill="#fff" x="-36" y="-24" width="72" height="48"/><g transform="rotate(-56.3099325)"><g id="kr-b2"><path id="kr-b" d="M-6-25H6M-6-22H6M-6-19H6" stroke="#000" stroke-width="2"/><use href="#kr-b" y="44"/></g><path stroke="#fff" d="M0,17v10"/><circle fill="#cd2e3a" r="12"/><path fill="#0047a0" d="M0-12A6,6 0 0 0 0,0A6,6 0 0 1 0,12A12,12 0 0 1 0-12Z"/></g><g transform="rotate(-123.6900675)"><use href="#kr-b2"/><path stroke="#fff" d="M0-23.5v3M0,17v3.5M0,23.5v3"/></g></svg>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en">English</button>
+      <button type="button" data-lang="my">မြန်မာ</button>
+    </div>
   </div>
-  <h1>Myanmar Embassy Seoul passport lookup</h1>
-  <p class="sub" id="range">Check whether your passport is on a pickup list.</p>
+
+  <h1 data-t="title"></h1>
+  <p class="sub" id="range"></p>
 
   <form id="f">
-    <input id="q" autocomplete="off" autofocus placeholder="Full name or passport number" aria-label="Full name or passport number">
-    <button>Search</button>
+    <input id="q" autocomplete="off" autofocus>
+    <button data-t="search"></button>
   </form>
-  <p class="hint">Enter a full name (e.g. AUNG AUNG) or a passport number (e.g. MF123456 or MF12**56).</p>
+  <p class="hint" data-t="hint"></p>
 
-  <div id="status" aria-live="polite"></div>
-  <div id="results"></div>
+  <div id="out" aria-live="polite"></div>
 
-  <footer>
-    Read by OCR from the photos posted on the
-    <a href="https://www.facebook.com/profile.php?id=100064770370682">Myanmar Embassy, Seoul</a> Facebook page.
-    Names can contain OCR mistakes, so always confirm in the original post.
-    Lists mask passport numbers differently (MF12**56, MF1***56, MF1****6), so a passport-number match only means the visible digits agree.
-  </footer>
+  <footer data-t="footer"></footer>
 </main>
 <script>
-let rows = [];
+const T = {
+  en: {
+    title: "Myanmar Embassy Seoul passport lookup",
+    range: (n, a, b) => `Search ${n} names from lists posted ${a} to ${b}.`,
+    placeholder: "Name or passport number",
+    search: "Search",
+    hint: "Enter a name (e.g. AUNG AUNG, or just AUNG to see every name with that word) or a passport number (e.g. MF123456 or MF12**56).",
+    matches: (n, q) => `${n} match${n === 1 ? "" : "es"} for "${q}"`,
+    none: q => `No match for "${q}"`,
+    containing: (n, q) => `${n} name${n === 1 ? "" : "s"} containing "${q}"`,
+    tooShort: "Type at least 2 letters.",
+    view: "View post",
+    exact: "exact",
+    possible: "possible",
+    footer: `Read by OCR from the photos posted on the <a href="https://www.facebook.com/profile.php?id=100064770370682">Myanmar Embassy, Seoul</a> Facebook page. Names can contain OCR mistakes, so always confirm in the original post. Lists mask passport numbers differently (MF12**56, MF1***56, MF1****6), so a passport-number match only means the visible digits agree.`,
+  },
+  my: {
+    title: "ဆိုးလ်မြို့ရှိ မြန်မာသံရုံး ပတ်စ်ပို့ ရှာဖွေရန်",
+    range: (n, a, b) => `${a} မှ ${b} အထိ တင်ထားသော စာရင်းများမှ အမည် ${n} ခုကို ရှာဖွေနိုင်ပါသည်။`,
+    placeholder: "အမည် သို့မဟုတ် ပတ်စ်ပို့နံပါတ်",
+    search: "ရှာမည်",
+    hint: "အမည် (ဥပမာ AUNG AUNG၊ သို့မဟုတ် AUNG ပါသော အမည်အားလုံးကို ကြည့်ရန် AUNG ဟုသာ) သို့မဟုတ် ပတ်စ်ပို့နံပါတ် (ဥပမာ MF123456 သို့မဟုတ် MF12**56) ကို အင်္ဂလိပ်လို ရိုက်ထည့်ပါ။",
+    matches: (n, q) => `"${q}" နှင့် ကိုက်ညီမှု ${n} ခု`,
+    none: q => `"${q}" နှင့် ကိုက်ညီမှု မရှိပါ`,
+    containing: (n, q) => `"${q}" ပါဝင်သော အမည် ${n} ခု`,
+    tooShort: "အနည်းဆုံး စာလုံး ၂ လုံး ရိုက်ပါ။",
+    view: "ပို့စ်ကြည့်ရန်",
+    exact: "တိကျ",
+    possible: "ဖြစ်နိုင်",
+    footer: `<a href="https://www.facebook.com/profile.php?id=100064770370682">ဆိုးလ်မြို့ရှိ မြန်မာသံရုံး</a> Facebook စာမျက်နှာတွင် တင်ထားသော ဓာတ်ပုံများမှ OCR ဖြင့် ဖတ်ယူထားခြင်း ဖြစ်ပါသည်။ အမည်များတွင် OCR အမှားများ ပါနိုင်သဖြင့် မူရင်းပို့စ်တွင် အမြဲ ပြန်လည်စစ်ဆေးပါ။ စာရင်းများတွင် ပတ်စ်ပို့နံပါတ်ကို ပုံစံအမျိုးမျိုးဖြင့် ဖုံးကွယ်ထားသောကြောင့် (MF12**56, MF1***56, MF1****6) နံပါတ်ကိုက်ညီမှုသည် မြင်ရသော ဂဏန်းများ တူညီကြောင်းသာ ဆိုလိုပါသည်။`,
+  },
+};
+
+let rows = [], lang = "en", lastQuery = "";
 const $ = id => document.getElementById(id);
 const norm = s => s.toUpperCase().replace(/[^A-Z0-9*]/g, "");
+const words = s => s.toUpperCase().split(/[^A-Z]+/).filter(Boolean);
 const ID_RE = /^(M[A-Z]?)(\d*)\*+(\d*)$/;
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function idCompatible(q, stored) {
   // full number "MF123456": every digit visible
@@ -90,53 +148,94 @@ function idCompatible(q, stored) {
   if (full) q = `${full[1]}${full[2]}*${full[2]}`;
   const a = q.match(ID_RE), b = stored.match(ID_RE);
   if (!a || !b || a[1] !== b[1]) return false;
-  const lead = a[2].startsWith(b[2]) || b[2].startsWith(a[2]);
-  const tail = a[3].endsWith(b[3]) || b[3].endsWith(a[3]);
-  return lead && tail;
+  return (a[2].startsWith(b[2]) || b[2].startsWith(a[2])) && (a[3].endsWith(b[3]) || b[3].endsWith(a[3]));
 }
 
-function search(raw) {
-  const q = norm(raw);
-  if (!q) return null;
-  if (/^M[A-Z]?\d/.test(q)) {
-    return rows.filter(r => idCompatible(q, r[2]))
-      .map(r => ({ r, exact: r[2] === q || r[2].replace(/\*+/, "*") === q.replace(/\*+/, "*") }));
-  }
-  return rows.filter(r => norm(r[1]) === q).map(r => ({ r, exact: true }));
+// every query word is a prefix of some word in the name: "aung" -> AUNG KO, MIN AUNG, ...
+function nameContains(qWords, name) {
+  const nw = words(name);
+  return qWords.every(q => nw.some(w => w.startsWith(q)));
+}
+
+function highlight(name, qWords) {
+  return words(name).map(w => {
+    const q = qWords.find(q => w.startsWith(q));
+    return q ? `<mark>${esc(w.slice(0, q.length))}</mark>${esc(w.slice(q.length))}` : esc(w);
+  }).join(" ");
+}
+
+const link = fbid => `https://www.facebook.com/photo.php?fbid=${fbid}`;
+
+function card([date, name, id, fbid], exact) {
+  const t = T[lang];
+  return `<div class="result ${exact ? "exact" : "maybe"}">
+    <div class="name">${esc(name)}</div><div class="id">${esc(id)}</div>
+    <div class="meta">${date} · <a href="${link(fbid)}" target="_blank" rel="noopener">${t.view}</a></div>
+    <div class="tag">${exact ? t.exact : t.possible}</div></div>`;
+}
+
+function cell([date, name, id, fbid], qWords) {
+  return `<div class="cell"><div class="name">${highlight(name, qWords)}</div><div class="id">${esc(id)}</div>
+    <div class="meta">${date} · <a href="${link(fbid)}" target="_blank" rel="noopener">${T[lang].view}</a></div></div>`;
 }
 
 function render(raw) {
-  const hits = search(raw);
-  const res = $("results");
-  res.replaceChildren();
-  if (!hits) { $("status").textContent = ""; return; }
-  $("status").textContent = hits.length
-    ? `${hits.length} match${hits.length > 1 ? "es" : ""} for "${raw.trim()}"`
-    : `No match for "${raw.trim()}"`;
-  for (const { r: [date, name, id, fbid], exact } of hits) {
-    const d = document.createElement("div");
-    d.className = "result " + (exact ? "exact" : "maybe");
-    const link = `https://www.facebook.com/photo.php?fbid=${fbid}`;
-    d.innerHTML = `<div class="name"></div><div class="id"></div>
-      <div class="meta">${date} · <a target="_blank" rel="noopener">View post</a></div>
-      <div class="tag">${exact ? "exact" : "possible"}</div>`;
-    d.querySelector(".name").textContent = name;
-    d.querySelector(".id").textContent = id;
-    d.querySelector("a").href = link;
-    res.append(d);
+  lastQuery = raw;
+  const t = T[lang], shown = raw.trim(), q = norm(raw);
+  const out = $("out");
+  if (!q) { out.innerHTML = ""; return; }
+
+  if (/^M[A-Z]?\d/.test(q)) {
+    const hits = rows.filter(r => idCompatible(q, r[2]));
+    const same = id => id.replace(/\*+/, "*") === q.replace(/\*+/, "*");
+    out.innerHTML = `<h2>${esc(hits.length ? t.matches(hits.length, shown) : t.none(shown))}</h2>` +
+      hits.map(r => card(r, r[2] === q || same(r[2]))).join("");
+    return;
   }
+
+  const qWords = words(raw);
+  if (qWords.join("").length < 2) { out.innerHTML = `<h2>${t.tooShort}</h2>`; return; }
+  const exact = rows.filter(r => norm(r[1]) === q);
+  const partial = rows.filter(r => norm(r[1]) !== q && nameContains(qWords, r[1]))
+    .sort((a, b) => a[1].localeCompare(b[1]) || b[0].localeCompare(a[0]));
+  let html = "";
+  if (exact.length || !partial.length) html += `<h2>${esc(exact.length ? t.matches(exact.length, shown) : t.none(shown))}</h2>` + exact.map(r => card(r, true)).join("");
+  if (partial.length) html += `<h2>${esc(t.containing(partial.length, shown))}</h2><div class="grid">${partial.map(r => cell(r, qWords)).join("")}</div>`;
+  out.innerHTML = html;
 }
 
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  const t = T[l];
+  document.querySelectorAll("[data-t]").forEach(el => {
+    el[el.dataset.t === "footer" ? "innerHTML" : "textContent"] = t[el.dataset.t];
+  });
+  $("q").placeholder = t.placeholder;
+  $("q").setAttribute("aria-label", t.placeholder);
+  document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === l));
+  if (rows.length) {
+    const dates = rows.map(r => r[0]).sort();
+    $("range").textContent = t.range(rows.length.toLocaleString(), dates[0], dates.at(-1));
+  }
+  if (lastQuery) render(lastQuery);
+  try { localStorage.setItem("lang", l); } catch {}
+}
+
+document.querySelectorAll("[data-lang]").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
 $("f").addEventListener("submit", e => {
   e.preventDefault();
   render($("q").value);
   history.replaceState(null, "", "#" + encodeURIComponent($("q").value.trim()));
 });
 
+let saved = null;
+try { saved = localStorage.getItem("lang"); } catch {}
+setLang(saved || ((navigator.language || "").startsWith("my") ? "my" : "en"));
+
 fetch("data.json").then(r => r.json()).then(data => {
   rows = data;
-  const dates = rows.map(r => r[0]).sort();
-  $("range").textContent = `Search ${rows.length.toLocaleString()} names from lists posted ${dates[0]} to ${dates.at(-1)}.`;
+  setLang(lang);
   const initial = decodeURIComponent(location.hash.slice(1));
   if (initial) { $("q").value = initial; render(initial); }
 });

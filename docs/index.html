@@ -22,6 +22,8 @@
     font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   main { max-width: 640px; margin: 0 auto; padding: 48px 16px 64px; }
+  .flags { display: flex; gap: 10px; margin-bottom: 18px; }
+  .flags svg { width: 42px; height: 28px; border-radius: 4px; box-shadow: 0 0 0 1px var(--line); display: block; }
   h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
   .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
   form { display: flex; gap: 8px; }
@@ -53,6 +55,10 @@
 </head>
 <body>
 <main>
+  <div class="flags" aria-hidden="true">
+    <svg viewBox="0 0 18 12"><path fill="#FECB00" d="M0 0h18v4H0z"/><path fill="#34B233" d="M0 4h18v4H0z"/><path fill="#EA2839" d="M0 8h18v4H0z"/><polygon fill="#fff" points="9.000,2.000 9.993,5.056 13.206,5.056 10.606,6.944 11.599,9.999 9.000,8.111 6.401,9.999 7.394,6.944 4.794,5.056 8.007,5.056"/></svg>
+    <svg viewBox="-36 -24 72 48"><rect fill="#fff" x="-36" y="-24" width="72" height="48"/><g transform="rotate(-56.3099325)"><g id="kr-b2"><path id="kr-b" d="M-6-25H6M-6-22H6M-6-19H6" stroke="#000" stroke-width="2"/><use href="#kr-b" y="44"/></g><path stroke="#fff" d="M0,17v10"/><circle fill="#cd2e3a" r="12"/><path fill="#0047a0" d="M0-12A6,6 0 0 0 0,0A6,6 0 0 1 0,12A12,12 0 0 1 0-12Z"/></g><g transform="rotate(-123.6900675)"><use href="#kr-b2"/><path stroke="#fff" d="M0-23.5v3M0,17v3.5M0,23.5v3"/></g></svg>
+  </div>
   <h1>Myanmar Embassy Seoul passport lookup</h1>
   <p class="sub" id="range">Check whether your passport is on a pickup list.</p>
 

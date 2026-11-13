@@ -2,8 +2,7 @@
 Writes photos/<fbid>.jpg and photos/manifest.csv (fbid, url, date).
 
 Usage: python download.py [--since YYYY-MM-DD] [--fix-dates]
-Default cutoff: 8 days before the newest date in docs/data.json. Facebook shows relative dates ("4d") for under a week,
-so the overlap re-reads those once they become exact; extract.py replaces rows per photo.
+Default cutoff: 8 days before the newest date in docs/data.json, to catch photos added to recent posts later.
 Set HEADLESS=1 to run without a window (CI)."""
 import csv, json, os, re, sys, time, urllib.request
 from datetime import datetime, timedelta
@@ -45,6 +44,11 @@ def page_date(page, now=None):
         if d := parse_date(t):
             return d
         if m := re.fullmatch(r"(\d+)([mhdw])", t.strip()):
+            # "5d" is rounded down, so read the exact time from the embedded JSON. That JSON is only
+            # current after a full load ("Next photo" navigates client-side and keeps the first photo's).
+            page.reload(); time.sleep(4)
+            if ts := re.search(r'"creation_time":(\d{10})', page.content()):
+                return datetime.fromtimestamp(int(ts[1]))
             unit = {"m": "minutes", "h": "hours", "d": "days", "w": "weeks"}[m[2]]
             return now - timedelta(**{unit: int(m[1])})
     return None
@@ -89,7 +93,11 @@ def main():
             d = page_date(page)
             if d and d < since:
                 print("reached cutoff at", d.date(), page.url); break
-            src = page.eval_on_selector_all("img", "els => els.filter(e => e.naturalWidth > 500).map(e => e.src)")
+            # largest image on the page; some lists are uploaded small (493x705), so no fixed width cutoff
+            src = page.eval_on_selector_all("img", """els => els.filter(e => e.naturalWidth * e.naturalHeight > 150000)
+                .sort((a, b) => b.naturalWidth * b.naturalHeight - a.naturalWidth * a.naturalHeight).map(e => e.src)""")
+            if not src:
+                print(fbid, "no full-size image found", flush=True)
             if fbid not in done and src:
                 urllib.request.urlretrieve(src[0], OUT / f"{fbid}.jpg")
                 w.writerow([fbid, f"https://www.facebook.com/photo.php?fbid={fbid}", d.date().isoformat() if d else ""]); f.flush()

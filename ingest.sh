@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "${0:A:h}"
 echo "== $(date)"
-git pull --rebase -q
+git pull --rebase --autostash -q
 HEADLESS=1 .venv/bin/python download.py
 .venv/bin/python extract.py
 if git diff --quiet docs/data.json; then echo "No changes"; exit 0; fi

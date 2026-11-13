@@ -2,7 +2,8 @@
 Writes photos/<fbid>.jpg and photos/manifest.csv (fbid, url, date).
 
 Usage: python download.py [--since YYYY-MM-DD] [--fix-dates]
-Default cutoff: 14 days before the newest date in docs/data.json (weekly runs overlap; extract.py dedupes).
+Default cutoff: 8 days before the newest date in docs/data.json. Facebook shows relative dates ("4d") for under a week,
+so the overlap re-reads those once they become exact; extract.py replaces rows per photo.
 Set HEADLESS=1 to run without a window (CI)."""
 import csv, json, os, re, sys, time, urllib.request
 from datetime import datetime, timedelta
@@ -29,7 +30,7 @@ def cutoff():
         return datetime.fromisoformat(sys.argv[sys.argv.index("--since") + 1])
     data = Path("docs/data.json")
     newest = max((r[0] for r in json.loads(data.read_text())), default="") if data.exists() else ""
-    return datetime.fromisoformat(newest) - timedelta(days=14) if newest else datetime(2026, 6, 1)
+    return datetime.fromisoformat(newest) - timedelta(days=8) if newest else datetime(2026, 6, 1)
 
 
 def launch(p):

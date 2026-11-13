@@ -63,23 +63,28 @@ def extract(path):
 
 
 def main():
+    """OCR every photo in photos/ and merge into docs/data.json (rows: [date, name, id, fbid]),
+    replacing any rows from the same photos. Then rebuild passports.db from data.json."""
     manifest = {r["fbid"]: r for r in csv.DictReader(open("photos/manifest.csv"))}
+    data = Path("docs/data.json")
+    paths = sorted(Path("photos").glob("*.jpg"))
+    seen = {p.stem for p in paths}
+    rows = [r for r in (json.loads(data.read_text()) if data.exists() else []) if r[3] not in seen]
+    with ThreadPoolExecutor(8) as ex:
+        for path, found in zip(paths, ex.map(extract, paths)):
+            rows += [[manifest.get(path.stem, {}).get("date", ""), n, i, path.stem] for n, i in found]
+    rows.sort(key=lambda r: (r[0], r[3]), reverse=True)
+    data.parent.mkdir(exist_ok=True)
+    data.write_text(json.dumps(rows, separators=(",", ":")))
+
     db = sqlite3.connect("passports.db")
     db.execute("DROP TABLE IF EXISTS entries")
     db.execute("CREATE TABLE entries (fb_post_link TEXT, date TEXT, name TEXT, id TEXT)")
-    paths = sorted(Path("photos").glob("*.jpg"))
-    with ThreadPoolExecutor(8) as ex:
-        for path, rows in zip(paths, ex.map(extract, paths)):
-            m = manifest.get(path.stem, {})
-            db.executemany("INSERT INTO entries VALUES (?,?,?,?)",
-                           [(m.get("url", ""), m.get("date", ""), n, i) for n, i in rows])
+    db.executemany("INSERT INTO entries VALUES (?,?,?,?)",
+                   [(f"https://www.facebook.com/photo.php?fbid={f}", d, n, i) for d, n, i, f in rows])
     db.execute("CREATE INDEX idx_id ON entries(id)")
     db.commit()
-    print(db.execute("SELECT count(*), count(DISTINCT fb_post_link) FROM entries").fetchone())
-    # static site data: [date, name, id, fbid]
-    rows = db.execute("SELECT date, name, id, replace(fb_post_link, 'https://www.facebook.com/photo.php?fbid=', '') FROM entries ORDER BY date DESC").fetchall()
-    Path("docs").mkdir(exist_ok=True)
-    Path("docs/data.json").write_text(json.dumps(rows, separators=(",", ":")))
+    print(len(rows), "rows from", len({r[3] for r in rows}), "photos")
 
 
 if __name__ == "__main__":

@@ -81,7 +81,10 @@ def main():
         page.goto(url)
         while url:
             time.sleep(3)
-            fbid = re.search(r"fbid=(\d+)", page.url)[1]
+            if not (m := re.search(r"fbid=(\d+)", page.url)):
+                page.screenshot(path=OUT / "blocked.png")
+                sys.exit(f"Facebook redirected to {page.url} (likely a login wall); see photos/blocked.png")
+            fbid = m[1]
             d = page_date(page)
             if d and d < since:
                 print("reached cutoff at", d.date(), page.url); break

@@ -60,7 +60,7 @@
     <input id="q" autocomplete="off" autofocus placeholder="Full name or passport number" aria-label="Full name or passport number">
     <button>Search</button>
   </form>
-  <p class="hint">Enter a full name (e.g. SU THADAR) or a passport number (e.g. MF469457 or MF46**97).</p>
+  <p class="hint">Enter a full name (e.g. AUNG AUNG) or a passport number (e.g. MF123456 or MF12**56).</p>
 
   <div id="status" aria-live="polite"></div>
   <div id="results"></div>
@@ -69,7 +69,7 @@
     Read by OCR from the photos posted on the
     <a href="https://www.facebook.com/profile.php?id=100064770370682">Myanmar Embassy, Seoul</a> Facebook page.
     Names can contain OCR mistakes, so always confirm in the original post.
-    Lists mask passport numbers differently (MF46**97, MF4***97, MF4****7), so a passport-number match only means the visible digits agree.
+    Lists mask passport numbers differently (MF12**56, MF1***56, MF1****6), so a passport-number match only means the visible digits agree.
   </footer>
 </main>
 <script>
@@ -79,7 +79,7 @@ const norm = s => s.toUpperCase().replace(/[^A-Z0-9*]/g, "");
 const ID_RE = /^(M[A-Z]?)(\d*)\*+(\d*)$/;
 
 function idCompatible(q, stored) {
-  // full number "MF469457": every digit visible
+  // full number "MF123456": every digit visible
   const full = q.match(/^(M[A-Z]?)(\d{6})$/);
   if (full) q = `${full[1]}${full[2]}*${full[2]}`;
   const a = q.match(ID_RE), b = stored.match(ID_RE);

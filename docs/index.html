@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="my">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -231,7 +231,7 @@ $("f").addEventListener("submit", e => {
 
 let saved = null;
 try { saved = localStorage.getItem("lang"); } catch {}
-setLang(saved || ((navigator.language || "").startsWith("my") ? "my" : "en"));
+setLang(saved || "my");
 
 fetch("data.json").then(r => r.json()).then(data => {
   rows = data;

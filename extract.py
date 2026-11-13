@@ -1,0 +1,100 @@
+"""OCR photos/*.jpg -> passports.db table entries(fb_post_link, date, name, id)."""
+import csv, json, re, sqlite3, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+# Masks vary per post: MF46**92, MF4***92, MF3****2, MF 4**09. Stored as printed.
+# OCR may mangle stars ('*k', '"***') or add a letter ("MFS56**09").
+ID_RE = re.compile(r"^(M[A-Z]?)[A-Z]?([0-9O]{1,2})([^0-9\s]{1,5})([0-9O]{1,2})\W*$")
+NAME_RE = re.compile(r"^[A-Z][A-Z.'-]*$")
+
+
+def norm_token(t):
+    return t.strip("|[](),.!:;").upper().replace("0", "O")  # names never contain digits; "00" is "OO"
+
+
+def ocr_words(path):
+    """Returns (image width, [(left, top, width, height, text)])."""
+    tsv = subprocess.run(["tesseract", str(path), "-", "tsv"], capture_output=True, text=True).stdout
+    rows = list(csv.DictReader(tsv.splitlines(), delimiter="\t", quoting=csv.QUOTE_NONE))
+    width = max((int(r["left"]) + int(r["width"]) for r in rows), default=1)
+    return width, [tuple(int(r[k]) for k in ("left", "top", "width", "height")) + (r["text"].strip(),)
+                   for r in rows if r["level"] == "5" and r["text"].strip()]
+
+
+def rows_by_id(words):
+    """For each passport-ID word, the words on the same visual row to its left (tesseract may put
+    the ID column in a separate block, so its own line grouping can't be trusted)."""
+    cy = lambda w: w[1] + w[3] / 2
+    same_row = lambda a, b: abs(cy(a) - cy(b)) < 0.6 * max(a[3], b[3])
+    # join IDs split as "MF" + "45**43"
+    for a in [w for w in words if re.fullmatch(r"M[A-Z]", w[4])]:
+        nxt = [w for w in words if same_row(a, w) and 0 < w[0] - a[0] - a[2] < 3 * a[3] and re.match(r"[0-9O]{1,2}\*", w[4])]
+        if nxt:
+            b = nxt[0]; words.remove(a); words.remove(b)
+            words.append((a[0], min(a[1], b[1]), b[0] + b[2] - a[0], max(a[3], b[3]), a[4] + b[4]))
+    for idw in sorted((w for w in words if ID_RE.match(w[4])), key=lambda w: w[1]):
+        row = sorted(w for w in words if w[0] + w[2] <= idw[0] and same_row(w, idw))
+        yield [(w[0], w[2], w[4]) for w in row] + [(idw[0], idw[2], idw[4])]
+
+
+def parse_line(words, width):
+    """words: [(left, width, text)] sorted by x. Returns (name, id) or None."""
+    for i, (_, _, t) in enumerate(words):
+        if m := ID_RE.match(t):
+            before = words[:i]
+            pipes = [k for k, w in enumerate(before) if "|" in w[2]]
+            if pipes:  # "|" is the OCR'd column border after the serial number
+                k = pipes[-1]
+                before = before[k + 1:] if before[k][2].endswith("|") else [before[k][:2] + (before[k][2].split("|")[-1],)] + before[k + 1:]
+            # drop serial column: everything before the last big horizontal gap
+            for j in range(len(before) - 1, 0, -1):
+                if before[j][0] - (before[j - 1][0] + before[j - 1][1]) > 0.025 * width:
+                    before = before[j:]; break
+            name = " ".join(n for _, _, t in before if NAME_RE.match(n := norm_token(t)))
+            num = lambda d: d.replace("O", "0")
+            return (name, f"{m[1]}{num(m[2])}{'*' * len(m[3])}{num(m[4])}") if name else None
+    return None
+
+
+def extract(path):
+    width, words = ocr_words(path)
+    return [p for ws in rows_by_id(words) if (p := parse_line(ws, width))]
+
+
+def main():
+    manifest = {r["fbid"]: r for r in csv.DictReader(open("photos/manifest.csv"))}
+    db = sqlite3.connect("passports.db")
+    db.execute("DROP TABLE IF EXISTS entries")
+    db.execute("CREATE TABLE entries (fb_post_link TEXT, date TEXT, name TEXT, id TEXT)")
+    paths = sorted(Path("photos").glob("*.jpg"))
+    with ThreadPoolExecutor(8) as ex:
+        for path, rows in zip(paths, ex.map(extract, paths)):
+            m = manifest.get(path.stem, {})
+            db.executemany("INSERT INTO entries VALUES (?,?,?,?)",
+                           [(m.get("url", ""), m.get("date", ""), n, i) for n, i in rows])
+    db.execute("CREATE INDEX idx_id ON entries(id)")
+    db.commit()
+    print(db.execute("SELECT count(*), count(DISTINCT fb_post_link) FROM entries").fetchone())
+    # static site data: [date, name, id, fbid]
+    rows = db.execute("SELECT date, name, id, replace(fb_post_link, 'https://www.facebook.com/photo.php?fbid=', '') FROM entries ORDER BY date DESC").fetchall()
+    Path("docs").mkdir(exist_ok=True)
+    Path("docs/data.json").write_text(json.dumps(rows, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    W = 1133
+    assert parse_line([(180, 20, "G"), (248, 40, "HSU"), (300, 70, "HLAING"), (380, 50, "HTUN"), (700, 90, "MF46**92")], W) == ("HSU HLAING HTUN", "MF46**92")
+    assert parse_line([(180, 30, "JR"), (248, 40, "CHO"), (300, 40, "SIN"), (350, 50, "LYNN"), (700, 90, "MF61*k00")], W) == ("CHO SIN LYNN", "MF61**00")
+    assert parse_line([(248, 40, "NU"), (290, 40, "YEE"), (700, 90, "MF50**36,")], W) == ("NU YEE", "MF50**36")
+    assert parse_line([(180, 10, "J"), (200, 5, "|"), (248, 40, "CHIT"), (300, 20, "Ko"), (330, 20, "Ko"), (700, 90, "MF68**31")], W) == ("CHIT KO KO", "MF68**31")
+    assert parse_line([(180, 20, "29"), (205, 5, "|"), (248, 40, "NAY"), (300, 20, "MYO"), (330, 20, "00"), (700, 90, "MFS56**09")], W) == ("NAY MYO OO", "MF56**09")
+    assert parse_line([(180, 20, "J."), (230, 40, "MIN"), (280, 40, "KYAW"), (700, 90, "MF63**23")], W) == ("MIN KYAW", "MF63**23")
+    assert parse_line([(184, 25, "go"), (253, 79, "|JUBILIE"), (342, 40, "HTA"), (741, 97, "MF22**51")], W) == ("JUBILIE HTA", "MF22**51")
+    assert parse_line([(184, 28, "sq"), (253, 44, "[MYO"), (306, 40, "SAN"), (740, 98, "MF42**73")], W) == ("MYO SAN", "MF42**73")
+    assert parse_line([(140, 20, "66"), (190, 40, "HEIN"), (250, 40, "HTET"), (300, 40, "AUNG"), (680, 90, "MF1***93")], W) == ("HEIN HTET AUNG", "MF1***93")
+    assert parse_line([(100, 20, "34"), (170, 40, "THADAR"), (220, 40, "SOE"), (700, 90, 'ME3"***2')], W) == ("THADAR SOE", "ME3****2")
+    split = [(100, 10, 20, 20, "J"), (250, 12, 40, 20, "SU"), (300, 12, 40, 20, "MYAT"), (800, 8, 25, 20, "MF"), (830, 8, 60, 20, "22**48"),
+             (250, 60, 40, 20, "NU"), (300, 60, 40, 20, "YEE"), (800, 55, 90, 20, "MF50**36")]
+    assert [parse_line(r, W) for r in rows_by_id(split)] == [("SU MYAT", "MF22**48"), ("NU YEE", "MF50**36")]
+    main()

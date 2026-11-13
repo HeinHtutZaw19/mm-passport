@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MM Passport Lookup</title>
+<meta name="description" content="Check whether your passport is on a Myanmar Embassy Seoul pickup list.">
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --text: #1b1b1a; --muted: #6b6b66; --line: #e3e3de;
+    --accent: #1f5f4a; --accent-text: #ffffff; --hit: #e8f3ee; --maybe: #fbf4e4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --card: #1e1e1c; --text: #ececea; --muted: #9b9b95; --line: #33332f;
+      --accent: #5fb393; --accent-text: #0e1a15; --hit: #1d3029; --maybe: #332d1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 48px 16px 64px; }
+  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+  form { display: flex; gap: 8px; }
+  input {
+    flex: 1; min-width: 0; font: inherit; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  button {
+    font: inherit; font-weight: 600; padding: 12px 20px; border: 0; border-radius: 10px;
+    background: var(--accent); color: var(--accent-text); cursor: pointer;
+  }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 2px 0; }
+  #status { margin: 28px 0 12px; font-weight: 600; }
+  .result {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px;
+  }
+  .result.exact { background: var(--hit); }
+  .result.maybe { background: var(--maybe); }
+  .name { font-weight: 600; }
+  .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .meta a { color: var(--accent); }
+  .tag { font-size: 12px; color: var(--muted); text-align: right; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; border-top: 1px solid var(--line); padding-top: 16px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Myanmar Embassy Seoul passport lookup</h1>
+  <p class="sub" id="range">Check whether your passport is on a pickup list.</p>
+
+  <form id="f">
+    <input id="q" autocomplete="off" autofocus placeholder="Full name or passport number" aria-label="Full name or passport number">
+    <button>Search</button>
+  </form>
+  <p class="hint">Enter a full name (e.g. SU THADAR) or a passport number (e.g. MF469457 or MF46**97).</p>
+
+  <div id="status" aria-live="polite"></div>
+  <div id="results"></div>
+
+  <footer>
+    Read by OCR from the photos posted on the
+    <a href="https://www.facebook.com/profile.php?id=100064770370682">Myanmar Embassy, Seoul</a> Facebook page.
+    Names can contain OCR mistakes, so always confirm in the original post.
+    Lists mask passport numbers differently (MF46**97, MF4***97, MF4****7), so a passport-number match only means the visible digits agree.
+  </footer>
+</main>
+<script>
+let rows = [];
+const $ = id => document.getElementById(id);
+const norm = s => s.toUpperCase().replace(/[^A-Z0-9*]/g, "");
+const ID_RE = /^(M[A-Z]?)(\d*)\*+(\d*)$/;
+
+function idCompatible(q, stored) {
+  // full number "MF469457": every digit visible
+  const full = q.match(/^(M[A-Z]?)(\d{6})$/);
+  if (full) q = `${full[1]}${full[2]}*${full[2]}`;
+  const a = q.match(ID_RE), b = stored.match(ID_RE);
+  if (!a || !b || a[1] !== b[1]) return false;
+  const lead = a[2].startsWith(b[2]) || b[2].startsWith(a[2]);
+  const tail = a[3].endsWith(b[3]) || b[3].endsWith(a[3]);
+  return lead && tail;
+}
+
+function search(raw) {
+  const q = norm(raw);
+  if (!q) return null;
+  if (/^M[A-Z]?\d/.test(q)) {
+    return rows.filter(r => idCompatible(q, r[2]))
+      .map(r => ({ r, exact: r[2] === q || r[2].replace(/\*+/, "*") === q.replace(/\*+/, "*") }));
+  }
+  return rows.filter(r => norm(r[1]) === q).map(r => ({ r, exact: true }));
+}
+
+function render(raw) {
+  const hits = search(raw);
+  const res = $("results");
+  res.replaceChildren();
+  if (!hits) { $("status").textContent = ""; return; }
+  $("status").textContent = hits.length
+    ? `${hits.length} match${hits.length > 1 ? "es" : ""} for "${raw.trim()}"`
+    : `No match for "${raw.trim()}"`;
+  for (const { r: [date, name, id, fbid], exact } of hits) {
+    const d = document.createElement("div");
+    d.className = "result " + (exact ? "exact" : "maybe");
+    const link = `https://www.facebook.com/photo.php?fbid=${fbid}`;
+    d.innerHTML = `<div class="name"></div><div class="id"></div>
+      <div class="meta">${date} · <a target="_blank" rel="noopener">View post</a></div>
+      <div class="tag">${exact ? "exact" : "possible"}</div>`;
+    d.querySelector(".name").textContent = name;
+    d.querySelector(".id").textContent = id;
+    d.querySelector("a").href = link;
+    res.append(d);
+  }
+}
+
+$("f").addEventListener("submit", e => {
+  e.preventDefault();
+  render($("q").value);
+  history.replaceState(null, "", "#" + encodeURIComponent($("q").value.trim()));
+});
+
+fetch("data.json").then(r => r.json()).then(data => {
+  rows = data;
+  const dates = rows.map(r => r[0]).sort();
+  $("range").textContent = `Search ${rows.length.toLocaleString()} names from lists posted ${dates[0]} to ${dates.at(-1)}.`;
+  const initial = decodeURIComponent(location.hash.slice(1));
+  if (initial) { $("q").value = initial; render(initial); }
+});
+</script>
+</body>
+</html>

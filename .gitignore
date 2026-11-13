@@ -1,0 +1,6 @@
+.venv/
+profile/
+photos/
+dl.log
+__pycache__/
+*.db

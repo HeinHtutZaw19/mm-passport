@@ -4,3 +4,4 @@ photos/
 dl.log
 __pycache__/
 *.db
+logs/
